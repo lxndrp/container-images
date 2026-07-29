@@ -1,0 +1,119 @@
+name: Build, test, and publish images
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_PREFIX: ghcr.io/lxndrp/
+  IMAGE_SOURCE: https://github.com/lxndrp/container-images
+
+jobs:
+  test:
+    name: Test Ubuntu ${{ matrix.ubuntu.version }}
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE_PREFIX: local/
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu:
+          - version: "24.04"
+            digest: sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+          - version: "26.04"
+            digest: sha256:3131b4cc82a783df6c9df078f86e01819a13594b865c2cad47bd1bca2b7063bb
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Prepare build metadata
+        env:
+          UBUNTU_VERSION_VALUE: ${{ matrix.ubuntu.version }}
+          UBUNTU_DIGEST_VALUE: ${{ matrix.ubuntu.digest }}
+        run: |
+          {
+            echo "UBUNTU_VERSION=${UBUNTU_VERSION_VALUE}"
+            echo "UBUNTU_DIGEST=${UBUNTU_DIGEST_VALUE}"
+            echo "IMAGE_REVISION=${GITHUB_SHA}"
+            echo "REVISION_SHORT=${GITHUB_SHA::12}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Build local test images
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
+        with:
+          load: true
+          source: .
+
+      - name: Run smoke tests
+        run: ./scripts/smoke-test.sh "${UBUNTU_VERSION}"
+
+      - name: Run static checks
+        run: ./scripts/lint.sh
+
+  publish:
+    name: Publish Ubuntu ${{ matrix.ubuntu.version }}
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu:
+          - version: "24.04"
+            digest: sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90
+          - version: "26.04"
+            digest: sha256:3131b4cc82a783df6c9df078f86e01819a13594b865c2cad47bd1bca2b7063bb
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@371161bbe7024a29a25c5e19bfcbc0804fe9ad2c # v4.5.2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare build metadata
+        env:
+          UBUNTU_VERSION_VALUE: ${{ matrix.ubuntu.version }}
+          UBUNTU_DIGEST_VALUE: ${{ matrix.ubuntu.digest }}
+        run: |
+          image_version="0.1.0"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            image_version="${GITHUB_REF_NAME#v}"
+          fi
+          {
+            echo "UBUNTU_VERSION=${UBUNTU_VERSION_VALUE}"
+            echo "UBUNTU_DIGEST=${UBUNTU_DIGEST_VALUE}"
+            echo "IMAGE_VERSION=${image_version}"
+            echo "IMAGE_REVISION=${GITHUB_SHA}"
+            echo "REVISION_SHORT=${GITHUB_SHA::12}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Publish images with SBOM and provenance
+        uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
+        with:
+          push: true
+          provenance: mode=max
+          sbom: true
+          source: .
