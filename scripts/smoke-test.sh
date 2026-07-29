@@ -11,6 +11,12 @@ state_dir="$(mktemp -d)"
 workspace_dir="$(mktemp -d)"
 chmod 0777 "${state_dir}" "${workspace_dir}"
 cleanup() {
+  docker run --rm --entrypoint /bin/sh --user 10001:10001 \
+    --volume "${state_dir}:/cleanup/state" \
+    --volume "${workspace_dir}:/cleanup/workspace" \
+    "${base_image}" \
+    -c 'rm -rf /cleanup/state/* /cleanup/state/.[!.]* /cleanup/state/..?* /cleanup/workspace/* /cleanup/workspace/.[!.]* /cleanup/workspace/..?*' \
+    >/dev/null 2>&1 || true
   rm -rf "${state_dir}" "${workspace_dir}"
 }
 trap cleanup EXIT
