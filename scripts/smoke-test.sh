@@ -9,6 +9,7 @@ github_image="local/codex-github:${suffix}"
 
 state_dir="$(mktemp -d)"
 workspace_dir="$(mktemp -d)"
+chmod 0777 "${state_dir}" "${workspace_dir}"
 cleanup() {
   rm -rf "${state_dir}" "${workspace_dir}"
 }
