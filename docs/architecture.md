@@ -39,7 +39,11 @@ Das offizielle Standalone-Paket wird statt nur der losgelösten Binärdatei
 `codex remote-control` die verwaltete Struktur unter
 `$CODEX_HOME/packages/standalone/current` erwartet. Das Paket enthält die
 native Codex-Binärdatei und deren offizielle Laufzeitressourcen. Ein Symlink
-stellt `codex` auf dem `PATH` bereit.
+stellt `codex` auf dem `PATH` bereit. Beim Containerstart kopiert ein
+unprivilegierter Bootstrap die fixierte Release-Struktur bei Bedarf in das
+eingebundene Codex-Zustandsvolume und setzt dessen `current`-Symlink. So bleibt
+die Installation auch dann sichtbar, wenn `/home/codex/.codex` vollständig
+persistiert wird; das Root-Dateisystem bleibt schreibgeschützt.
 
 Git ist die einzige zusätzliche allgemeine Entwicklungsfunktion dieser Ebene.
 Der Entrypoint startet standardmäßig `codex remote-control` im Vordergrund.

@@ -24,6 +24,7 @@ nicht bewegliche Tags.
 - [Sicherheitsmodell](docs/security.md)
 - [Vertrag mit homelab](docs/homelab-contract.md)
 - [Manueller Integrationstest](docs/manual-integration-test.md)
+- [Upstream-Quellen und Pins](docs/upstream-sources.md)
 
 ## Lokale Entwicklung
 

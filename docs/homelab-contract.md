@@ -20,6 +20,10 @@ Synology-Instanzen und ändert das `homelab`-Repository nicht.
 Es darf keinen Docker-Socket, keinen NAS-Wurzelmount, keine SSH-Freigabe und
 keine eingehende Portfreigabe geben.
 
+Das Zustandsvolume muss für UID/GID `10001:10001` schreibbar vorbereitet werden.
+Beim ersten Start legt der unprivilegierte Entrypoint darin die zum fixierten
+Codex-Release gehörende verwaltete Standalone-Struktur an.
+
 ## Beispiel, nicht als Deployment
 
 ```yaml
